@@ -1,2 +1,2 @@
 # Bitcoin-Stocks-Prediction
-Regression model and prediction of bitcoin prices
+Machine Learning model for prediction of bitcoin prices
