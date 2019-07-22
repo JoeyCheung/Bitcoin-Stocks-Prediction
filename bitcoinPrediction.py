@@ -2,53 +2,65 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# Importing the dataset
-dataset = pd.read_csv('Position_Salaries.csv')
-X = dataset.iloc[:, 1:2].values
-y = dataset.iloc[:, 2].values
+dataset = pd.read_csv('Coinbase_BTCUSD_d.csv')
+X = dataset['Date']
+Y = dataset['USD'].mean()
 
-# Splitting the dataset into the Training set and Test set
-from sklearn.model_selection import train_test_split 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+prediction_days = 30
+df_train= Y[:len(Y)-prediction_days]
+df_test= Y[len(Y)-prediction_days:]
 
-# Fitting Linear Regression to the dataset
-from sklearn.linear_model import LinearRegression
-lin_reg = LinearRegression()
-lin_reg.fit(X, y)
+training_set = df_train.values
+training_set = np.reshape(training_set, (len(training_set), 1))
+from sklearn.preprocessing import MinMaxScaler
+sc = MinMaxScaler()
+training_set = sc.fit_transform(training_set)
+X_train = training_set[0:len(training_set)-1]
+y_train = training_set[1:len(training_set)]
+X_train = np.reshape(X_train, (len(X_train), 1, 1))
 
-# Visualizing the Linear Regression results
-def viz_linear():
-    plt.scatter(X, y, color='red')
-    plt.plot(X, lin_reg.predict(X), color='blue')
-    plt.title('Truth or Bluff (Linear Regression)')
-    plt.xlabel('Position level')
-    plt.ylabel('Salary')
-    plt.show()
-    return
-viz_linear()
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
 
-# Fitting Polynomial Regression to the dataset
-from sklearn.preprocessing import PolynomialFeatures
-poly_reg = PolynomialFeatures(degree=4)
-X_poly = poly_reg.fit_transform(X)
-pol_reg = LinearRegression()
-pol_reg.fit(X_poly, y)
+# Initialising the RNN
+regressor = Sequential()
 
-# Visualizing the Polymonial Regression results
-def viz_polymonial():
-    plt.scatter(X, y, color='red')
-    plt.plot(X, pol_reg.predict(poly_reg.fit_transform(X)), color='blue')
-    plt.title('Truth or Bluff (Linear Regression)')
-    plt.xlabel('Position level')
-    plt.ylabel('Salary')
-    plt.show()
-    return
-viz_polymonial()
+# Adding the input layer and the LSTM layer
+regressor.add(LSTM(units = 4, activation = 'sigmoid', input_shape = (None, 1)))
 
-# Predicting a new result with Linear Regression
-lin_reg.predict([[5.5]])
-#output should be 249500
+# Adding the output layer
+regressor.add(Dense(units = 1))
 
-# Predicting a new result with Polymonial Regression
-pol_reg.predict(poly_reg.fit_transform([[5.5]]))
-#output should be 132148.43750003
+# Compiling the RNN
+regressor.compile(optimizer = 'adam', loss = 'mean_squared_error')
+
+# Fitting the RNN to the Training set
+regressor.fit(X_train, y_train, batch_size = 5, epochs = 100)
+
+test_set = df_test.values
+inputs = np.reshape(test_set, (len(test_set), 1))
+inputs = sc.transform(inputs)
+inputs = np.reshape(inputs, (len(inputs), 1, 1))
+predicted_BTC_price = regressor.predict(inputs)
+predicted_BTC_price = sc.inverse_transform(predicted_BTC_price)
+
+# Visualising the results
+plt.figure(figsize=(25,15), dpi=80, facecolor='w', edgecolor='k')
+ax = plt.gca()  
+plt.plot(test_set, color = 'red', label = 'Real BTC Price')
+plt.plot(predicted_BTC_price, color = 'blue', label = 'Predicted BTC Price')
+plt.title('BTC Price Prediction', fontsize=40)
+df_test = df_test.reset_index()
+x=df_test.index
+labels = df_test['date']
+plt.xticks(x, labels, rotation = 'vertical')
+for tick in ax.xaxis.get_major_ticks():
+    tick.label1.set_fontsize(18)
+for tick in ax.yaxis.get_major_ticks():
+    tick.label1.set_fontsize(18)
+plt.xlabel('Time', fontsize=40)
+plt.ylabel('BTC Price(USD)', fontsize=40)
+plt.legend(loc=2, prop={'size': 25})
+plt.show()
+
