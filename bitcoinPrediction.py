@@ -2,14 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-dataset = pd.read_csv('Coinbase_BTCUSD_d.csv')
-X = dataset['Date']
-Y = dataset['USD'].mean()
+# Import the dataset and encode the date
+dataset = pd.read_csv('bitstampUSD_1-min_data_2012-01-01_to_2019-03-13.csv')
+dataset['date'] = pd.to_datetime(dataset['Timestamp'],unit='s').dt.date
+group = dataset.groupby('date')
+Real_Price = group['Weighted_Price'].mean()
 
+# split data (prediction days is 30 because I want to predict a month)
 prediction_days = 30
-df_train= Y[:len(Y)-prediction_days]
-df_test= Y[len(Y)-prediction_days:]
+df_train= Real_Price[:len(Real_Price)-prediction_days]
+df_test= Real_Price[len(Real_Price)-prediction_days:]
 
+# Data preprocess (I feature scale the data and reshape it since I want to use Keras)
 training_set = df_train.values
 training_set = np.reshape(training_set, (len(training_set), 1))
 from sklearn.preprocessing import MinMaxScaler
@@ -19,11 +23,12 @@ X_train = training_set[0:len(training_set)-1]
 y_train = training_set[1:len(training_set)]
 X_train = np.reshape(X_train, (len(X_train), 1, 1))
 
+# Importing the Keras libraries and packages
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 
-# Initialising the RNN
+# Initializing the RNN
 regressor = Sequential()
 
 # Adding the input layer and the LSTM layer
@@ -48,8 +53,8 @@ predicted_BTC_price = sc.inverse_transform(predicted_BTC_price)
 # Visualising the results
 plt.figure(figsize=(25,15), dpi=80, facecolor='w', edgecolor='k')
 ax = plt.gca()  
-plt.plot(test_set, color = 'red', label = 'Real BTC Price')
-plt.plot(predicted_BTC_price, color = 'blue', label = 'Predicted BTC Price')
+plt.plot(test_set, color = 'green', label = 'Real')
+plt.plot(predicted_BTC_price, color = 'blue', label = 'Predicted')
 plt.title('BTC Price Prediction', fontsize=40)
 df_test = df_test.reset_index()
 x=df_test.index
